@@ -1,0 +1,1 @@
+# Handles loading and validating input data from JSON files.

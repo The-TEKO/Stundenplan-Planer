@@ -1,0 +1,1 @@
+# Initializes the solver module and exposes the main solving interface.

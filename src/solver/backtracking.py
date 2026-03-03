@@ -1,0 +1,1 @@
+# Implements the core backtracking algorithm for timetable generation.

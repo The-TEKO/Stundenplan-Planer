@@ -1,0 +1,1 @@
+# Entry point of the application that coordinates input, solving and output.

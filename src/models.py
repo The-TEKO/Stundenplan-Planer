@@ -1,0 +1,1 @@
+# Defines the core data structures such as Course, Teacher, Room and Timeslot.
