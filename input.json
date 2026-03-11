@@ -1,0 +1,205 @@
+{
+    "Classes": [
+        {
+            "name": "10A",
+            "student_count": 25
+        },
+        {
+            "name": "10B",
+            "student_count": 30
+        }
+    ],
+    "Courses": [
+        {
+            "name": "Deutsch",
+            "courses_per_weak": 4,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Mathematik",
+            "courses_per_weak": 5,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Werken",
+            "courses_per_weak": 1,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Handarbeit",
+            "courses_per_weak": 1,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Religion",
+            "courses_per_weak": 1,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Musik",
+            "courses_per_weak": 1,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Französisch",
+            "courses_per_weak": 2,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Geographie",
+            "courses_per_weak": 3,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Geschichte",
+            "courses_per_weak": 3,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Englisch",
+            "courses_per_weak": 2,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Sport",
+            "courses_per_weak": 3,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Hauswirtschaft",
+            "courses_per_weak": 2,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Informatik",
+            "courses_per_weak": 2,
+            "classes": ["10A", "10B"]
+        },
+        {
+            "name": "NMG",
+            "courses_per_weak": 3,
+            "classes": ["10A", "10B"]
+        }
+    ],
+    "Teachers": [
+        {
+            "name": "Magdalena Furrer",
+            "abbreviation": "MF",
+            "courses": ["Deutsch", "Geschichte"]
+        },
+        {
+            "name": "Heinz Sutter",
+            "abbreviation": "HS",
+            "courses": ["Mathematik", "Geographie", "NMG"]
+        },
+        {
+            "name": "Fiona Überlhart",
+            "abbreviation": "FÜ",
+            "courses": ["Handarbeit", "Hauswirtschaft"]
+        },
+        {
+            "name": "Fritz Meier",
+            "abbreviation": "FM",
+            "courses": ["Werken"]
+        },
+        {
+            "name": "Pascal Fischer",
+            "abbreviation": "PF",
+            "courses": ["Religion"]
+        },
+        {
+            "name": "Michelle Hugentobler",
+            "abbreviation": "MH",
+            "courses": ["Musik"]
+        },
+        {
+            "name": "Frank Lauber",
+            "abbreviation": "FL",
+            "courses": ["Französisch"]
+        },
+        {
+            "name": "Adriane Kobel",
+            "abbreviation": "AK",
+            "courses": ["Englisch", "Informatik"]
+        },
+        {
+            "name": "Maurizio Brolla",
+            "abbreviation": "MB",
+            "courses": ["Sport"]
+        }
+    ],
+    "Rooms": [
+        {
+            "name": "Z01",
+            "capacity": 30,
+            "accepted_courses": ["Deutsch", "Geschichte"]
+        },
+        {
+            "name": "Z02",
+            "capacity": 30,
+            "accepted_courses": ["Mathematik", "Geographie", "NMG"]
+        },
+        {
+            "name": "Z03",
+            "capacity": 30,
+            "accepted_courses": ["Handarbeit"]
+        },
+        {
+            "name": "K01",
+            "capacity": 30,
+            "accepted_courses": ["Hauswirtschaft"]
+        },
+        {
+            "name": "Z04",
+            "capacity": 30,
+            "accepted_courses": ["Englisch", "Informatik"]
+        },
+        {
+            "name": "Z05",
+            "capacity": 30,
+            "accepted_courses": ["Religion"]
+        },
+        {
+            "name": "Z06",
+            "capacity": 30,
+            "accepted_courses": ["Musik"]
+        },
+        {
+            "name": "Z07",
+            "capacity": 30,
+            "accepted_courses": ["Französisch"]
+        },
+        {
+            "name": "W01",
+            "capacity": 30,
+            "accepted_courses": ["Werken"]
+        },
+        {
+            "name": "TH",
+            "capacity": 30,
+            "accepted_courses": ["Sport"]
+        }
+    ],
+    "Timeslots": [
+        {
+            "day": "Monday",
+            "lesson_times": ["07:20-08:05", "08:10-08:55", "09:00-09:45", "10:05-10:50", "10:55-11:40", "13:35-14:20", "14:25-15:10", "15:30-16:15"]
+        },
+        {
+            "day": "Tuesday",
+            "lesson_times": ["08:10-08:55", "09:00-09:45", "10:05-10:50", "10:55-11:40", "13:35-14:20", "14:25-15:10", "15:30-16:15", "16:20-17:05"]
+        },
+        {
+            "day": "Wednesday",
+            "lesson_times": ["07:20-08:05", "08:10-08:55", "09:00-09:45", "10:05-10:50", "10:55-11:40"]
+        },
+        {
+            "day": "Thursday",
+            "lesson_times": ["08:10-08:55", "09:00-09:45", "10:05-10:50", "10:55-11:40", "13:35-14:20", "14:25-15:10", "15:30-16:15", "16:20-17:05"]
+        },
+        {
+            "day": "Friday",
+            "lesson_times": ["07:20-08:05", "08:10-08:55", "09:00-09:45", "10:05-10:50", "10:55-11:40", "13:35-14:20", "14:25-15:10"]
+        }
+    ]
+}
