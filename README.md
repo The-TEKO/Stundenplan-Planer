@@ -15,7 +15,7 @@ Creation:
 
 Activation:
     On Windows:
-        my_env\Scripts\activate
+        ```my_env\Scripts\activate```
     
     On macOS/Linux:
         source my_env/bin/activate
