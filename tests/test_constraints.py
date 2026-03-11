@@ -69,3 +69,24 @@ def test_constraints_reject_three_equal_lessons_in_row():
 
     valid = constraints_ok(schedule, third_session, third_slot, room, [teacher])
     assert valid is False
+
+
+def test_constraints_allow_same_course_with_gap_between_lessons():
+    class_a, math_course, teacher, room = _create_base_objects()
+
+    first_session = Session(math_course, class_a, teacher=teacher, lesson_number=1)
+    second_session = Session(math_course, class_a, teacher=teacher, lesson_number=2)
+    third_session = Session(math_course, class_a, teacher=teacher, lesson_number=3)
+
+    first_slot = Timeslot("Monday", "08:00-08:45", index_in_day=0)
+    second_slot = Timeslot("Monday", "08:45-09:30", index_in_day=1)
+    gap_slot = Timeslot("Monday", "09:30-10:15", index_in_day=2)
+    third_slot = Timeslot("Monday", "10:15-11:00", index_in_day=3)
+
+    schedule = {
+        first_session: (first_slot, room),
+        second_session: (second_slot, room),
+    }
+
+    valid = constraints_ok(schedule, third_session, third_slot, room, [teacher])
+    assert valid is True

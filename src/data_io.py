@@ -4,6 +4,8 @@
 import json
 from pathlib import Path
 
+from datetime import datetime
+
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
@@ -112,45 +114,8 @@ def build_models(data):
     }
 
 
-def _sort_assignments_key(item):
-    session = item[0]
-    assignment = item[1]
-    timeslot = assignment[0]
-    return (session.class_.name, timeslot.day, timeslot.index_in_day, timeslot.time, session.course.name)
-
-
-def _sort_class_row_key(item, day_order):
-    session = item[0]
-    assignment = item[1]
-    timeslot = assignment[0]
-    return (
-        day_order.get(timeslot.day, 999),
-        timeslot.index_in_day,
-        timeslot.time,
-        session.course.name,
-    )
-
-
-def _first_tuple_value(item):
-    return item[0]
-
-
-def export_schedule_to_excel(schedule, output_path):
-    """Exports the solution as a formatted Excel workbook.
-
-    Structure:
-    - one `Overview` sheet with all lessons
-    - one sheet per class
-    - formatted headers, borders, filters, and frozen header row
-    """
-    if schedule is None:
-        return
-
-    workbook = Workbook()
-    overview_sheet = workbook.active
-    overview_sheet.title = "Übersicht"
-
-    day_order = {
+def _weekday_rank(day_name):
+    order = {
         "Monday": 1,
         "Tuesday": 2,
         "Wednesday": 3,
@@ -159,154 +124,312 @@ def export_schedule_to_excel(schedule, output_path):
         "Saturday": 6,
         "Sunday": 7,
     }
+    if day_name in order:
+        return order[day_name]
+    return 999
 
+
+def _parse_time_start(time_text):
+    start_text = time_text
+    if "-" in time_text:
+        start_text = time_text.split("-")[0]
+
+    try:
+        parsed = datetime.strptime(start_text, "%H:%M")
+        return parsed.hour * 60 + parsed.minute
+    except ValueError:
+        return 9999
+
+
+def _teacher_short(session):
+    if session.teacher is None:
+        return "-"
+    if session.teacher.abbreviation is not None:
+        if session.teacher.abbreviation.strip() != "":
+            return session.teacher.abbreviation
+    return session.teacher.name
+
+
+def _cell_text_for_lesson(session, room):
+    teacher_short = _teacher_short(session)
+    return f"{session.course.name} ({teacher_short}) [{room.name}]"
+
+
+def _build_schedule_lookup(schedule):
+    lesson_lookup = {}
+
+    for session, assignment in schedule.items():
+        timeslot = assignment[0]
+        room = assignment[1]
+        key = (session.class_.name, timeslot.day, timeslot.time)
+        lesson_lookup[key] = _cell_text_for_lesson(session, room)
+
+    return lesson_lookup
+
+
+def _collect_day_time_structure(timeslots):
+    day_to_times = {}
+    for timeslot in timeslots:
+        if timeslot.day not in day_to_times:
+            day_to_times[timeslot.day] = []
+
+        already_exists = False
+        for known_time in day_to_times[timeslot.day]:
+            if known_time == timeslot.time:
+                already_exists = True
+                break
+
+        if not already_exists:
+            day_to_times[timeslot.day].append(timeslot.time)
+
+    for day_name in day_to_times:
+        day_to_times[day_name].sort(key=_parse_time_start)
+
+    day_names = list(day_to_times.keys())
+    day_names.sort(key=_weekday_rank)
+
+    all_times = []
+    for day_name in day_names:
+        for time_text in day_to_times[day_name]:
+            if time_text not in all_times:
+                all_times.append(time_text)
+    all_times.sort(key=_parse_time_start)
+
+    return day_names, day_to_times, all_times
+
+
+def _base_styles():
     thin_border = Border(
         left=Side(style="thin", color="D9D9D9"),
         right=Side(style="thin", color="D9D9D9"),
         top=Side(style="thin", color="D9D9D9"),
         bottom=Side(style="thin", color="D9D9D9"),
     )
-    header_fill = PatternFill(fill_type="solid", fgColor="1F4E78")
-    header_font = Font(color="FFFFFF", bold=True)
-    title_fill = PatternFill(fill_type="solid", fgColor="D9E1F2")
-    title_font = Font(size=14, bold=True)
 
-    sorted_items = list(schedule.items())
-    sorted_items.sort(key=_sort_assignments_key)
+    return {
+        "border": thin_border,
+        "title_fill": PatternFill(fill_type="solid", fgColor="D9E1F2"),
+        "title_font": Font(size=14, bold=True),
+        "header_font": Font(color="FFFFFF", bold=True),
+        "header_day_fill": PatternFill(fill_type="solid", fgColor="1F4E78"),
+        "header_time_fill": PatternFill(fill_type="solid", fgColor="244062"),
+        "free_fill": PatternFill(fill_type="solid", fgColor="FFF2CC"),
+        "n_a_fill": PatternFill(fill_type="solid", fgColor="EDEDED"),
+        "lesson_fill_a": PatternFill(fill_type="solid", fgColor="F9FBFD"),
+        "lesson_fill_b": PatternFill(fill_type="solid", fgColor="FFFFFF"),
+    }
 
-    overview_sheet.merge_cells("A1:G1")
-    overview_sheet["A1"] = "Stundenplan"
-    overview_sheet["A1"].font = title_font
-    overview_sheet["A1"].fill = title_fill
-    overview_sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
 
-    headers = ["Klasse", "Tag", "Zeit", "Fach", "Lektion", "Raum", "Lehrperson"]
-    header_row = 3
-    column_index = 1
-    for header in headers:
-        cell = overview_sheet.cell(row=header_row, column=column_index, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = thin_border
-        column_index = column_index + 1
+def _write_overview_sheet(workbook, lesson_lookup, class_names, day_names, day_to_times, all_times, styles):
+    sheet = workbook.active
+    sheet.title = "Wochenübersicht"
+
+    total_columns = 1 + (len(day_names) * len(class_names))
+    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+    sheet.cell(row=1, column=1, value="Gesamtansicht: Tag + Klasse je Spalte")
+    sheet.cell(row=1, column=1).font = styles["title_font"]
+    sheet.cell(row=1, column=1).fill = styles["title_fill"]
+    sheet.cell(row=1, column=1).alignment = Alignment(horizontal="center", vertical="center")
+
+    sheet.cell(row=3, column=1, value="Timeslot")
+    sheet.cell(row=3, column=1).font = styles["header_font"]
+    sheet.cell(row=3, column=1).fill = styles["header_time_fill"]
+    sheet.cell(row=3, column=1).alignment = Alignment(horizontal="center", vertical="center")
+    sheet.cell(row=3, column=1).border = styles["border"]
+
+    column = 2
+    for day_name in day_names:
+        for class_name in class_names:
+            header_text = f"{day_name} | {class_name}"
+            header_cell = sheet.cell(row=3, column=column, value=header_text)
+            header_cell.font = styles["header_font"]
+            header_cell.fill = styles["header_day_fill"]
+            header_cell.alignment = Alignment(horizontal="center", vertical="center")
+            header_cell.border = styles["border"]
+            column = column + 1
 
     row = 4
-    class_names = set()
-    for session, assignment in sorted_items:
-        timeslot = assignment[0]
-        room = assignment[1]
-        teacher_name = "-"
-        if session.teacher is not None:
-            teacher_name = session.teacher.name
+    for index, time_text in enumerate(all_times):
+        time_cell = sheet.cell(row=row, column=1, value=time_text)
+        time_cell.fill = styles["header_time_fill"]
+        time_cell.font = styles["header_font"]
+        time_cell.alignment = Alignment(horizontal="center", vertical="center")
+        time_cell.border = styles["border"]
 
-        class_names.add(session.class_.name)
+        column = 2
+        for day_name in day_names:
+            for class_name in class_names:
+                key = (class_name, day_name, time_text)
+                lesson_value = ""
 
-        values = [
-            session.class_.name,
-            timeslot.day,
-            timeslot.time,
-            session.course.name,
-            session.lesson_number,
-            room.name,
-            teacher_name,
-        ]
+                day_has_time = time_text in day_to_times[day_name]
+                if day_has_time:
+                    if key in lesson_lookup:
+                        lesson_value = lesson_lookup[key]
+                    else:
+                        lesson_value = "Freistunde"
+                else:
+                    lesson_value = "—"
 
-        col = 1
-        for value in values:
-            cell = overview_sheet.cell(row=row, column=col, value=value)
-            cell.border = thin_border
-            cell.alignment = Alignment(vertical="center")
-            col = col + 1
+                lesson_cell = sheet.cell(row=row, column=column, value=lesson_value)
+                lesson_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                lesson_cell.border = styles["border"]
+
+                if lesson_value == "Freistunde":
+                    lesson_cell.fill = styles["free_fill"]
+                elif lesson_value == "—":
+                    lesson_cell.fill = styles["n_a_fill"]
+                else:
+                    if index % 2 == 0:
+                        lesson_cell.fill = styles["lesson_fill_a"]
+                    else:
+                        lesson_cell.fill = styles["lesson_fill_b"]
+
+                column = column + 1
+
         row = row + 1
 
-    overview_sheet.freeze_panes = "A4"
-    overview_sheet.auto_filter.ref = f"A3:G{row - 1}"
-    overview_sheet.column_dimensions["A"].width = 12
-    overview_sheet.column_dimensions["B"].width = 14
-    overview_sheet.column_dimensions["C"].width = 16
-    overview_sheet.column_dimensions["D"].width = 20
-    overview_sheet.column_dimensions["E"].width = 10
-    overview_sheet.column_dimensions["F"].width = 10
-    overview_sheet.column_dimensions["G"].width = 24
+    sheet.freeze_panes = "B4"
+    sheet.auto_filter.ref = f"A3:{_excel_column_letter(total_columns)}{row - 1}"
+    sheet.column_dimensions["A"].width = 16
 
-    sorted_class_names = list(class_names)
-    sorted_class_names.sort()
+    for col in range(2, total_columns + 1):
+        col_letter = _excel_column_letter(col)
+        sheet.column_dimensions[col_letter].width = 23
 
-    for class_name in sorted_class_names:
-        safe_sheet_name = class_name
-        if len(safe_sheet_name) > 31:
-            safe_sheet_name = safe_sheet_name[:31]
 
-        class_sheet = workbook.create_sheet(title=safe_sheet_name)
-        class_sheet.merge_cells("A1:F1")
-        class_sheet["A1"] = f"Stundenplan {class_name}"
-        class_sheet["A1"].font = title_font
-        class_sheet["A1"].fill = title_fill
-        class_sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
+def _excel_column_letter(index):
+    letters = ""
+    value = index
+    while value > 0:
+        value, rest = divmod(value - 1, 26)
+        letters = chr(65 + rest) + letters
+    return letters
 
-        class_headers = ["Tag", "Zeit", "Fach", "Lektion", "Raum", "Lehrperson"]
-        header_col = 1
-        for class_header in class_headers:
-            header_cell = class_sheet.cell(row=3, column=header_col, value=class_header)
-            header_cell.font = header_font
-            header_cell.fill = header_fill
-            header_cell.alignment = Alignment(horizontal="center", vertical="center")
-            header_cell.border = thin_border
-            header_col = header_col + 1
 
-        class_rows = []
-        for session, assignment in sorted_items:
-            if session.class_.name == class_name:
-                class_rows.append((session, assignment))
+def _write_class_sheet(workbook, class_name, lesson_lookup, day_names, day_to_times, all_times, styles):
+    safe_sheet_name = class_name
+    if len(safe_sheet_name) > 31:
+        safe_sheet_name = safe_sheet_name[:31]
 
-        class_rows_with_keys = []
-        for class_row in class_rows:
-            sort_key = _sort_class_row_key(class_row, day_order)
-            class_rows_with_keys.append((sort_key, class_row))
+    sheet = workbook.create_sheet(title=safe_sheet_name)
+    total_columns = 1 + len(day_names)
 
-        class_rows_with_keys.sort(key=_first_tuple_value)
+    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+    sheet.cell(row=1, column=1, value=f"Wochenansicht {class_name}")
+    sheet.cell(row=1, column=1).font = styles["title_font"]
+    sheet.cell(row=1, column=1).fill = styles["title_fill"]
+    sheet.cell(row=1, column=1).alignment = Alignment(horizontal="center", vertical="center")
 
-        class_rows = []
-        for key_and_row in class_rows_with_keys:
-            class_rows.append(key_and_row[1])
+    sheet.cell(row=3, column=1, value="Timeslot")
+    sheet.cell(row=3, column=1).font = styles["header_font"]
+    sheet.cell(row=3, column=1).fill = styles["header_time_fill"]
+    sheet.cell(row=3, column=1).alignment = Alignment(horizontal="center", vertical="center")
+    sheet.cell(row=3, column=1).border = styles["border"]
 
-        current_row = 4
-        for session, assignment in class_rows:
-            timeslot = assignment[0]
-            room = assignment[1]
-            teacher_name = "-"
-            if session.teacher is not None:
-                teacher_name = session.teacher.name
+    column = 2
+    for day_name in day_names:
+        header_cell = sheet.cell(row=3, column=column, value=day_name)
+        header_cell.font = styles["header_font"]
+        header_cell.fill = styles["header_day_fill"]
+        header_cell.alignment = Alignment(horizontal="center", vertical="center")
+        header_cell.border = styles["border"]
+        column = column + 1
 
-            row_values = [
-                timeslot.day,
-                timeslot.time,
-                session.course.name,
-                session.lesson_number,
-                room.name,
-                teacher_name,
-            ]
+    row = 4
+    for index, time_text in enumerate(all_times):
+        time_cell = sheet.cell(row=row, column=1, value=time_text)
+        time_cell.fill = styles["header_time_fill"]
+        time_cell.font = styles["header_font"]
+        time_cell.alignment = Alignment(horizontal="center", vertical="center")
+        time_cell.border = styles["border"]
 
-            current_col = 1
-            for row_value in row_values:
-                row_cell = class_sheet.cell(row=current_row, column=current_col, value=row_value)
-                row_cell.border = thin_border
-                row_cell.alignment = Alignment(vertical="center")
-                current_col = current_col + 1
+        column = 2
+        for day_name in day_names:
+            key = (class_name, day_name, time_text)
 
-            current_row = current_row + 1
+            if time_text in day_to_times[day_name]:
+                if key in lesson_lookup:
+                    value = lesson_lookup[key]
+                else:
+                    value = "Freistunde"
+            else:
+                value = "—"
 
-        class_sheet.freeze_panes = "A4"
-        if current_row > 4:
-            class_sheet.auto_filter.ref = f"A3:F{current_row - 1}"
+            cell = sheet.cell(row=row, column=column, value=value)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = styles["border"]
 
-        class_sheet.column_dimensions["A"].width = 14
-        class_sheet.column_dimensions["B"].width = 16
-        class_sheet.column_dimensions["C"].width = 20
-        class_sheet.column_dimensions["D"].width = 10
-        class_sheet.column_dimensions["E"].width = 10
-        class_sheet.column_dimensions["F"].width = 24
+            if value == "Freistunde":
+                cell.fill = styles["free_fill"]
+            elif value == "—":
+                cell.fill = styles["n_a_fill"]
+            else:
+                if index % 2 == 0:
+                    cell.fill = styles["lesson_fill_a"]
+                else:
+                    cell.fill = styles["lesson_fill_b"]
+
+            column = column + 1
+
+        row = row + 1
+
+    sheet.freeze_panes = "B4"
+    sheet.auto_filter.ref = f"A3:{_excel_column_letter(total_columns)}{row - 1}"
+    sheet.column_dimensions["A"].width = 16
+
+    for col in range(2, total_columns + 1):
+        col_letter = _excel_column_letter(col)
+        sheet.column_dimensions[col_letter].width = 26
+
+
+def export_schedule_to_excel(schedule, output_path, timeslots, classes):
+    """Exports the timetable in matrix form (overview + one sheet per class).
+
+    Overview sheet:
+    - one column for each (day, class) pair
+    - one row per timeslot label
+
+    Class sheet:
+    - one column per day
+    - one row per timeslot label
+
+    Free periods are explicitly marked as `Freistunde`.
+    """
+    if schedule is None:
+        return
+
+    workbook = Workbook()
+    styles = _base_styles()
+
+    class_names = []
+    for class_obj in classes:
+        class_names.append(class_obj.name)
+    class_names.sort()
+
+    lesson_lookup = _build_schedule_lookup(schedule)
+    day_names, day_to_times, all_times = _collect_day_time_structure(timeslots)
+
+    _write_overview_sheet(
+        workbook,
+        lesson_lookup,
+        class_names,
+        day_names,
+        day_to_times,
+        all_times,
+        styles,
+    )
+
+    for class_name in class_names:
+        _write_class_sheet(
+            workbook,
+            class_name,
+            lesson_lookup,
+            day_names,
+            day_to_times,
+            all_times,
+            styles,
+        )
 
     workbook.save(output_path)
 

@@ -56,20 +56,30 @@ def _course_streak_would_exceed_limit(schedule, candidate_session, candidate_tim
 
     current_streak_course = None
     current_streak_count = 0
+    previous_index = None
 
     for ordered_row in ordered_rows:
+        current_timeslot = ordered_row[0]
         current_session = ordered_row[1]
         current_course_name = current_session.course.name
+        current_index = current_timeslot.index_in_day
 
         if current_streak_course is None:
             current_streak_course = current_course_name
             current_streak_count = 1
         else:
-            if current_course_name == current_streak_course:
+            is_adjacent_to_previous = False
+            if previous_index is not None:
+                if current_index == previous_index + 1:
+                    is_adjacent_to_previous = True
+
+            if is_adjacent_to_previous and current_course_name == current_streak_course:
                 current_streak_count = current_streak_count + 1
             else:
                 current_streak_course = current_course_name
                 current_streak_count = 1
+
+        previous_index = current_index
 
         if current_streak_count > max_streak:
             return True
@@ -111,8 +121,40 @@ def constraints_ok(
     Returns:
         True if all rules are satisfied, otherwise False.
     """
+    reason = constraint_failure_reason(
+        schedule,
+        session,
+        timeslot,
+        room,
+        teachers,
+        max_same_course_in_row=max_same_course_in_row,
+    )
+    if reason is None:
+        return True
+    return False
+
+
+def constraint_failure_reason(
+    schedule,
+    session,
+    timeslot,
+    room,
+    teachers,
+    max_same_course_in_row=2,
+):
+    """Returns a machine-friendly reason key when an assignment is invalid.
+
+    Returns:
+        None if valid, otherwise one of:
+        - room_capacity
+        - room_course_not_allowed
+        - room_double_booked
+        - class_double_booked
+        - teacher_double_booked
+        - max_same_course_in_row
+    """
     if room.capacity < session.class_.student_count:
-        return False
+        return "room_capacity"
 
     if len(room.accepted_courses) > 0:
         room_supports_course = False
@@ -121,7 +163,7 @@ def constraints_ok(
                 room_supports_course = True
                 break
         if not room_supports_course:
-            return False
+            return "room_course_not_allowed"
 
     candidate_teacher = session.teacher
     if candidate_teacher is None:
@@ -138,10 +180,10 @@ def constraints_ok(
 
         if same_timeslot:
             if existing_room.name == room.name:
-                return False
+                return "room_double_booked"
 
             if existing_session.class_.name == session.class_.name:
-                return False
+                return "class_double_booked"
 
             existing_teacher = existing_session.teacher
             if existing_teacher is None:
@@ -149,7 +191,7 @@ def constraints_ok(
 
             if existing_teacher is not None and candidate_teacher is not None:
                 if existing_teacher.name == candidate_teacher.name:
-                    return False
+                    return "teacher_double_booked"
 
     streak_exceeded = _course_streak_would_exceed_limit(
         schedule=schedule,
@@ -158,6 +200,6 @@ def constraints_ok(
         max_streak=max_same_course_in_row,
     )
     if streak_exceeded:
-        return False
+        return "max_same_course_in_row"
 
-    return True
+    return None

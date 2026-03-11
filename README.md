@@ -61,8 +61,13 @@ python src/main.py
 
 - Console output with all assigned sessions
 - Excel file: `data/output_schedule.xlsx`
-  - one `Overview` sheet
-  - one sheet per class
+  - one combined weekly matrix sheet (`Wochenübersicht`)
+    - one column for each day/class pair
+    - one row per timeslot
+  - one weekly matrix sheet per class
+    - one column per day
+    - one row per timeslot
+  - free periods are marked as `Freistunde`
   - formatted headers, filters, and freeze panes
 
 ## Notes

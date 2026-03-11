@@ -7,6 +7,10 @@
         {
             "name": "10B",
             "student_count": 30
+        },
+        {
+            "name": "10C",
+            "student_count": 20
         }
     ],
     "Courses": [
@@ -38,7 +42,12 @@
         {
             "name": "Musik",
             "courses_per_weak": 1,
-            "classes": ["10A", "10B"]
+            "classes": ["10A"]
+        },
+        {
+            "name": "Musik",
+            "courses_per_weak": 3,
+            "classes": ["10B"]
         },
         {
             "name": "Französisch",
@@ -73,12 +82,62 @@
         {
             "name": "Informatik",
             "courses_per_weak": 2,
-            "classes": ["10A", "10B"]
+            "classes": ["10A"]
         },
         {
             "name": "NMG",
             "courses_per_weak": 3,
             "classes": ["10A", "10B"]
+        },
+        {
+            "name": "Deutsch",
+            "courses_per_weak": 7,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Mathematik",
+            "courses_per_weak": 2,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Werken",
+            "courses_per_weak": 6,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Religion",
+            "courses_per_weak": 4,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Musik",
+            "courses_per_weak": 3,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Geographie",
+            "courses_per_weak": 2,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Geschichte",
+            "courses_per_weak": 2,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Sport",
+            "courses_per_weak": 4,
+            "classes": ["10C"]
+        },
+        {
+            "name": "Hauswirtschaft",
+            "courses_per_weak": 2,
+            "classes": ["10C"]
+        },
+        {
+            "name": "NMG",
+            "courses_per_weak": 1,
+            "classes": ["10C"]
         }
     ],
     "Teachers": [
