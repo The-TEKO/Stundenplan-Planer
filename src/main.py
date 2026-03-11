@@ -9,36 +9,16 @@ This module orchestrates all steps:
 """
 
 from pathlib import Path
-import importlib.util
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
+from data_io import build_models, load_data
 from constraints import teacher_for_course
 from models import Session
 from solver.backtracking import backtracking_search
 from timeslot import generate_timeslots
 from debug import debug
-
-
-def _load_project_io_module():
-    """Loads the local project `io.py` module explicitly.
-
-    Background:
-    Python has a built-in module called `io`.
-    This function guarantees that the project's own `io.py` is loaded,
-    not the built-in module.
-    """
-    io_path = Path(__file__).resolve().with_name("io.py")
-    spec = importlib.util.spec_from_file_location("project_io", io_path)
-    if spec is None:
-        raise RuntimeError("Could not create import spec for io.py")
-    if spec.loader is None:
-        raise RuntimeError("Could not load io.py")
-
-    project_io = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(project_io)
-    return project_io
 
 
 def create_sessions(courses, classes_by_name, teachers) -> list:
@@ -343,13 +323,11 @@ def export_schedule_to_excel(schedule, output_path):
 
 def main():
     """Runs the full planning process and writes the Excel output."""
-    project_io = _load_project_io_module()
-
     project_root = Path(__file__).resolve().parent.parent
     input_path = project_root / "input.json"
 
-    data = project_io.load_data(input_path)
-    model_data = project_io.build_models(data)
+    data = load_data(input_path)
+    model_data = build_models(data)
 
     timeslots = generate_timeslots(timeslot_definitions=model_data["timeslots"])
     sessions = create_sessions(

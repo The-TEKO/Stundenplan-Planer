@@ -108,12 +108,10 @@ def build_models(data):
         "timeslots": data["Timeslots"],
     }
 
+
 # Example usage
 if __name__ == "__main__":
     data = load_data("input.json")
     model_data = build_models(data)
     print(f"Classes: {len(model_data['classes'])}")
     print(f"Courses: {len(model_data['courses'])}")
-
-
-
