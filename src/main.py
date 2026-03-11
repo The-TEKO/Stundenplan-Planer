@@ -1,5 +1,8 @@
 # Entry point of the application that coordinates input, solving and output.
-from models import Session
+from models import Course, Session, Teacher, Room, Timeslot
+from timeslot import generate_timeslots
+from io import load_data
+from debug import debug
 
 def create_sessions(courses) -> list:
     """
@@ -12,6 +15,13 @@ def create_sessions(courses) -> list:
     Returns:
         list: A list of session objects created from the courses.
     """
+
+    sessions = []
+    for course in courses:
+        for i in range(course.lessons_per_week):
+            _course = Course(str(i) + course.name, course.lessons_per_week)
+            debug(f"Created session for course: {_course.name} with {course.lessons_per_week} lessons per week")
+            sessions.append(Session(_course, None))  # TODO: The class_ attribute should be assigned properly based on the input data
 
 
     yield
@@ -31,9 +41,13 @@ def create_domains(sessions, timeslots, rooms) -> list:
 
     yield
 
+
 def main():
 
-    
+    data = load_data("input.json")
+    timeslots = generate_timeslots(days=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], times=["08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00"])
+
+
 
     yield
 
