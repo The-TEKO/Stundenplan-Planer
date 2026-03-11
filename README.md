@@ -13,7 +13,7 @@ or determine that no solution exists under the current constraints.
 
 - `data/input.json`: Source data (classes, courses, teachers, rooms, timeslots)
 - `src/models.py`: Data models (`Course`, `Class`, `Teacher`, `Room`, `Timeslot`, `Session`)
-- `src/data_io.py`: JSON loading and conversion into model objects
+- `src/data_io.py`: Input/output handling (JSON loading, model building, Excel export)
 - `src/timeslot.py`: Timeslot object generation
 - `src/constraints.py`: Constraint checks
 - `src/solver/backtracking.py`: Recursive backtracking solver
