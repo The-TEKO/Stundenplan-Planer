@@ -1,4 +1,5 @@
 # Provides optional optimization strategies such as MRV for improved performance.
+"""Heuristics used by the timetable backtracking solver."""
 
 def mrv_heuristic(variables: list, domains: dict) -> list:
     """
@@ -12,4 +13,21 @@ def mrv_heuristic(variables: list, domains: dict) -> list:
     Returns:
         list: A list of variables sorted by the number of remaining values in their domain, with the variable having the fewest values first.
     """
-    return sorted(variables, key=lambda var: len(domains[var]))
+    variable_with_size = []
+
+    for variable in variables:
+        domain_size = len(domains[variable])
+        variable_with_size.append((variable, domain_size))
+
+    variable_with_size.sort(key=_domain_size_key)
+
+    ordered_variables = []
+    for pair in variable_with_size:
+        ordered_variables.append(pair[0])
+
+    return ordered_variables
+
+
+def _domain_size_key(item):
+    """Returns the domain size part of a `(variable, domain_size)` tuple."""
+    return item[1]

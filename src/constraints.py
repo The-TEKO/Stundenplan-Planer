@@ -1,82 +1,163 @@
-# Implements all scheduling rules and constraint validation logic.
+"""Constraint checks for timetable generation.
 
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+This module intentionally uses explicit, easy-to-read `if` blocks.
+Every new assignment is validated against the current partial schedule.
+"""
+
+
+def teacher_for_course(course_name, teachers):
+    """Finds the teacher for a given course name.
+
+    Args:
+        course_name: Name of the course.
+        teachers: List of Teacher objects.
+
+    Returns:
+        The matching Teacher object, or None if no match is found.
+    """
+    for teacher in teachers:
+        for teacher_course in teacher.courses:
+            if teacher_course == course_name:
+                return teacher
+    return None
+
+
+def _course_streak_would_exceed_limit(schedule, candidate_session, candidate_timeslot, max_streak):
+    """Checks the rule "maximum same course in a row".
+
+    For one class on one day, all assigned lessons are ordered by period.
+    If a sequence of the same course becomes longer than `max_streak`,
+    the candidate assignment is invalid.
+    """
+    same_class_same_day_rows = []
+
+    for existing_session, existing_assignment in schedule.items():
+        existing_timeslot = existing_assignment[0]
+
+        if existing_session.class_.name != candidate_session.class_.name:
+            continue
+        if existing_timeslot.day != candidate_timeslot.day:
+            continue
+
+        same_class_same_day_rows.append((existing_timeslot, existing_session))
+
+    same_class_same_day_rows.append((candidate_timeslot, candidate_session))
+
+    same_class_same_day_rows_with_keys = []
+    for row in same_class_same_day_rows:
+        row_key = row[0].index_in_day
+        same_class_same_day_rows_with_keys.append((row_key, row))
+
+    same_class_same_day_rows_with_keys.sort(key=_first_tuple_value)
+
+    ordered_rows = []
+    for key_and_row in same_class_same_day_rows_with_keys:
+        ordered_rows.append(key_and_row[1])
+
+    current_streak_course = None
+    current_streak_count = 0
+
+    for ordered_row in ordered_rows:
+        current_session = ordered_row[1]
+        current_course_name = current_session.course.name
+
+        if current_streak_course is None:
+            current_streak_course = current_course_name
+            current_streak_count = 1
+        else:
+            if current_course_name == current_streak_course:
+                current_streak_count = current_streak_count + 1
+            else:
+                current_streak_course = current_course_name
+                current_streak_count = 1
+
+        if current_streak_count > max_streak:
+            return True
+
+    return False
+
+
+def _first_tuple_value(item):
+    """Helper for simple explicit sorting."""
+    return item[0]
 
 
 def constraints_ok(
-    schedule: Mapping[Any, tuple[Any, Any]],
-    session: Any,
-    timeslot: Any,
-    room: Any,
-    teachers: Sequence[Any],
-    *,
-    max_same_session_per_day: int = 2,
-    require_consecutive_same_day: bool = True,
-    extra_constraints: Sequence[Callable[..., bool]] | None = None,
-) -> bool:
-    """
-    Checks whether a new assignment (session, timeslot, room) is compatible
-    with the current (partial) schedule.
+    schedule,
+    session,
+    timeslot,
+    room,
+    teachers,
+    max_same_course_in_row=2,
+):
+    """Checks whether a new assignment is valid.
+
+    Rules checked:
+    1) Room capacity must be large enough for the class.
+    2) Room must allow the course (if `accepted_courses` is configured).
+    3) A room cannot be double-booked in the same timeslot.
+    4) A class cannot have two sessions in the same timeslot.
+    5) A teacher cannot teach two sessions in the same timeslot.
+    6) Per class/day, at most 2 equal lessons may appear consecutively.
 
     Args:
-        schedule: Current assignment as a mapping {session: (timeslot, room)}.
-        session: The session to be scheduled next.
-        timeslot: Target timeslot for ``session``.
-        room: Target room for ``session``.
-        teachers: All available teacher objects (with ``name`` and ``courses``).
-        max_same_session_per_day: Maximum number of identical sessions allowed per day.
-        require_consecutive_same_day: If True, duplicate sessions on the same day
-            must be scheduled in consecutive periods.
-        extra_constraints: Optional additional constraint functions for testing.
-            Each function receives the same context as this function
-            (via keyword arguments) and must return ``bool``.
+        schedule: Current assignments {Session: (Timeslot, Room)}.
+        session: Candidate session to assign.
+        timeslot: Candidate timeslot for the session.
+        room: Candidate room for the session.
+        teachers: List of available teachers.
+        max_same_course_in_row: Maximum allowed consecutive lessons of the same course.
 
     Returns:
-        bool: True if all constraints are satisfied, False otherwise.
+        True if all rules are satisfied, otherwise False.
     """
+    if room.capacity < session.class_.student_count:
+        return False
 
-    # Project the candidate onto the current state.
-    # In unit tests this lets you validate a single scheduling step in isolation.
-    proposed = dict(schedule)
-    proposed[session] = (timeslot, room)
+    if len(room.accepted_courses) > 0:
+        room_supports_course = False
+        for accepted_course in room.accepted_courses:
+            if accepted_course == session.course.name:
+                room_supports_course = True
+                break
+        if not room_supports_course:
+            return False
 
-    # TODO 1: A room must not be double-booked in the same timeslot.
-    # Approach:
-    # - Build an index with key = (timeslot.day, timeslot.time, room.name).
-    # - If any key appears more than once -> return False.
+    candidate_teacher = session.teacher
+    if candidate_teacher is None:
+        candidate_teacher = teacher_for_course(session.course.name, teachers)
 
-    # TODO 2: A teacher must not teach two sessions at the same time.
-    # Requires:
-    # - Helper: teacher_for_session(session, teachers)
-    # - Index with key = (timeslot.day, timeslot.time, teacher.name)
-    # - Duplicate -> return False.
+    for existing_session, existing_assignment in schedule.items():
+        existing_timeslot = existing_assignment[0]
+        existing_room = existing_assignment[1]
 
-    # TODO 3: A class/student group must not attend two sessions at the same time.
-    # Requires:
-    # - Key = (timeslot.day, timeslot.time, session.class_.name)
-    # - Duplicate -> return False.
+        same_timeslot = False
+        if existing_timeslot.day == timeslot.day:
+            if existing_timeslot.time == timeslot.time:
+                same_timeslot = True
 
-    # TODO 4: The same session may appear at most max_same_session_per_day times per day.
-    # Session identity:
-    # - (session.course.name, session.class_.name)
-    # Check:
-    # - Count per (day, session identity) and compare against max_same_session_per_day.
-    # - If require_consecutive_same_day=True: sort periods and only allow direct neighbours.
-
-    if extra_constraints:
-        context = {
-            "schedule": schedule,
-            "proposed": proposed,
-            "session": session,
-            "timeslot": timeslot,
-            "room": room,
-            "teachers": teachers,
-            "max_same_session_per_day": max_same_session_per_day,
-            "require_consecutive_same_day": require_consecutive_same_day,
-        }
-        for constraint in extra_constraints:
-            if not constraint(**context):
+        if same_timeslot:
+            if existing_room.name == room.name:
                 return False
+
+            if existing_session.class_.name == session.class_.name:
+                return False
+
+            existing_teacher = existing_session.teacher
+            if existing_teacher is None:
+                existing_teacher = teacher_for_course(existing_session.course.name, teachers)
+
+            if existing_teacher is not None and candidate_teacher is not None:
+                if existing_teacher.name == candidate_teacher.name:
+                    return False
+
+    streak_exceeded = _course_streak_would_exceed_limit(
+        schedule=schedule,
+        candidate_session=session,
+        candidate_timeslot=timeslot,
+        max_streak=max_same_course_in_row,
+    )
+    if streak_exceeded:
+        return False
 
     return True
