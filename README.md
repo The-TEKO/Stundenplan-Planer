@@ -11,7 +11,7 @@ or determine that no solution exists under the current constraints.
 
 ## Project Structure
 
-- `input.json`: Source data (classes, courses, teachers, rooms, timeslots)
+- `data/input.json`: Source data (classes, courses, teachers, rooms, timeslots)
 - `src/models.py`: Data models (`Course`, `Class`, `Teacher`, `Room`, `Timeslot`, `Session`)
 - `src/data_io.py`: JSON loading and conversion into model objects
 - `src/timeslot.py`: Timeslot object generation
@@ -22,7 +22,7 @@ or determine that no solution exists under the current constraints.
 
 ## Solver Flow
 
-1. Load data from `input.json`
+1. Load data from `data/input.json`
 2. Build sessions from course/class/lesson definitions
 3. Build domains (all allowed `(Timeslot, Room)` combinations per session)
 4. Run backtracking
@@ -60,7 +60,7 @@ python src/main.py
 ## Output
 
 - Console output with all assigned sessions
-- Excel file: `output_schedule.xlsx`
+- Excel file: `data/output_schedule.xlsx`
   - one `Overview` sheet
   - one sheet per class
   - formatted headers, filters, and freeze panes

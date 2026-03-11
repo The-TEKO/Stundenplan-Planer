@@ -324,7 +324,10 @@ def export_schedule_to_excel(schedule, output_path):
 def main():
     """Runs the full planning process and writes the Excel output."""
     project_root = Path(__file__).resolve().parent.parent
-    input_path = project_root / "input.json"
+    data_dir = project_root / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    input_path = data_dir / "input.json"
 
     data = load_data(input_path)
     model_data = build_models(data)
@@ -343,7 +346,7 @@ def main():
     solution = backtracking_search(sessions, domains, model_data["teachers"])
     print_schedule(solution)
 
-    output_excel = project_root / "output_schedule.xlsx"
+    output_excel = data_dir / "output_schedule.xlsx"
     export_schedule_to_excel(solution, output_excel)
     print(f"Excel export erstellt: {output_excel}")
 
