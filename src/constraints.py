@@ -16,55 +16,53 @@ def constraints_ok(
     extra_constraints: Sequence[Callable[..., bool]] | None = None,
 ) -> bool:
     """
-    Prüft, ob eine neue Belegung (session, timeslot, room) mit dem aktuellen
-    (partiellen) Schedule vereinbar ist.
+    Checks whether a new assignment (session, timeslot, room) is compatible
+    with the current (partial) schedule.
 
     Args:
-        schedule: Aktuelle Belegung als Mapping
-            {session: (timeslot, room)}.
-        session: Die Session, die als Nächstes eingeplant werden soll.
-        timeslot: Ziel-Zeitfenster für ``session``.
-        room: Ziel-Raum für ``session``.
-        teachers: Alle verfügbaren Lehrer-Objekte (mit ``name`` und ``courses``).
-        max_same_session_per_day: Maximal erlaubte Anzahl gleicher Sessions pro Tag.
-        require_consecutive_same_day: Wenn True, müssen doppelte Sessions am
-            selben Tag direkt aufeinander folgen.
-        extra_constraints: Optional zusätzliche Constraint-Funktionen für Tests.
-            Jede Funktion erhält denselben Kontext wie diese Funktion
-            (über Keyword-Argumente) und muss ``bool`` zurückgeben.
+        schedule: Current assignment as a mapping {session: (timeslot, room)}.
+        session: The session to be scheduled next.
+        timeslot: Target timeslot for ``session``.
+        room: Target room for ``session``.
+        teachers: All available teacher objects (with ``name`` and ``courses``).
+        max_same_session_per_day: Maximum number of identical sessions allowed per day.
+        require_consecutive_same_day: If True, duplicate sessions on the same day
+            must be scheduled in consecutive periods.
+        extra_constraints: Optional additional constraint functions for testing.
+            Each function receives the same context as this function
+            (via keyword arguments) and must return ``bool``.
 
     Returns:
-        bool: True, wenn alle Constraints erfüllt sind, sonst False.
+        bool: True if all constraints are satisfied, False otherwise.
     """
 
-    # Kandidat als neue Belegung auf den aktuellen Zustand projizieren.
-    # In Unit-Tests kannst du so gezielt einen einzelnen Schritt validieren.
+    # Project the candidate onto the current state.
+    # In unit tests this lets you validate a single scheduling step in isolation.
     proposed = dict(schedule)
     proposed[session] = (timeslot, room)
 
-    # TODO 1: Raum darf im selben Timeslot nur einmal belegt sein.
-    # Idee:
-    # - Baue einen Index mit Key = (timeslot.day, timeslot.time, room.name).
-    # - Sobald ein Key doppelt vorkommt -> False.
+    # TODO 1: A room must not be double-booked in the same timeslot.
+    # Approach:
+    # - Build an index with key = (timeslot.day, timeslot.time, room.name).
+    # - If any key appears more than once -> return False.
 
-    # TODO 2: Lehrer darf nicht zwei Sessions gleichzeitig unterrichten.
-    # Benötigt:
-    # - Hilfsfunktion: teacher_for_session(session, teachers)
-    # - Index mit Key = (timeslot.day, timeslot.time, teacher.name)
-    # - Duplikat -> False.
+    # TODO 2: A teacher must not teach two sessions at the same time.
+    # Requires:
+    # - Helper: teacher_for_session(session, teachers)
+    # - Index with key = (timeslot.day, timeslot.time, teacher.name)
+    # - Duplicate -> return False.
 
-    # TODO 3: Klasse/Schüler dürfen nicht in zwei Sessions gleichzeitig sein.
-    # Benötigt:
+    # TODO 3: A class/student group must not attend two sessions at the same time.
+    # Requires:
     # - Key = (timeslot.day, timeslot.time, session.class_.name)
-    # - Duplikat -> False.
+    # - Duplicate -> return False.
 
-    # TODO 4: Maximal zwei identische Sessions pro Tag und ggf. zusammenhängend.
-    # Vorschlag für Session-Identität:
+    # TODO 4: The same session may appear at most max_same_session_per_day times per day.
+    # Session identity:
     # - (session.course.name, session.class_.name)
-    # Prüfung:
-    # - Pro (Tag, Session-Identität) zählen und gegen max_same_session_per_day prüfen.
-    # - Bei require_consecutive_same_day=True: Stundenliste sortieren und nur
-    #   direkte Nachbarschaft zulassen.
+    # Check:
+    # - Count per (day, session identity) and compare against max_same_session_per_day.
+    # - If require_consecutive_same_day=True: sort periods and only allow direct neighbours.
 
     if extra_constraints:
         context = {
