@@ -1,5 +1,5 @@
 from models import Class, Course, Room, Session, Teacher, Timeslot
-from solver.backtracking import backtracking_search
+from solver.backtracking import solve_timetable
 
 
 def test_backtracking_finds_solution_for_simple_case():
@@ -20,7 +20,7 @@ def test_backtracking_finds_solution_for_simple_case():
         session_2: [(slot_1, room), (slot_2, room)],
     }
 
-    solution = backtracking_search(sessions, domains, [teacher])
+    solution = solve_timetable(sessions, domains, [teacher])
 
     assert solution is not None
     assert len(solution) == 2

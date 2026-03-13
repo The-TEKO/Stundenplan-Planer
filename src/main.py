@@ -14,7 +14,7 @@ import time
 from data_io import build_models, export_schedule_to_excel, load_data
 from constraints import teacher_for_course
 from models import Session
-from solver.backtracking import backtracking_search
+from solver.backtracking import solve_timetable
 from timeslot import generate_timeslots
 from debug import debug
 
@@ -270,7 +270,7 @@ def main():
 
     progress_bar = CuteProgressBar(total=len(sessions))
     solver_stats = {}
-    solution = backtracking_search(
+    solution = solve_timetable(
         sessions,
         domains,
         model_data["teachers"],

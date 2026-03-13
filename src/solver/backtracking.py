@@ -9,7 +9,7 @@ and the next option is tried (classic backtracking).
 from constraints import constraint_failure_reason, constraints_ok
 
 
-def backtracking_search(
+def solve_timetable(
     sessions: list,
     domains: dict,
     teachers: list,
@@ -49,7 +49,7 @@ def backtracking_search(
         "probe_backtrack_count": 0,
         "probe_backtrack_start_ratio": probe_backtrack_start_ratio,
     }
-    result = _backtrack(
+    result = _search_recursive(
         schedule,
         sessions,
         domains,
@@ -70,7 +70,32 @@ def backtracking_search(
     return result
 
 
-def _backtrack(
+def backtracking_search(
+    sessions: list,
+    domains: dict,
+    teachers: list,
+    progress_callback=None,
+    stats_out=None,
+    aggressive_pruning=True,
+    force_probe_backtrack=True,
+    target_probe_backtracks=5,
+    probe_backtrack_start_ratio=0.8,
+) -> dict | None:
+    """Backward-compatible alias for solve_timetable."""
+    return solve_timetable(
+        sessions=sessions,
+        domains=domains,
+        teachers=teachers,
+        progress_callback=progress_callback,
+        stats_out=stats_out,
+        aggressive_pruning=aggressive_pruning,
+        force_probe_backtrack=force_probe_backtrack,
+        target_probe_backtracks=target_probe_backtracks,
+        probe_backtrack_start_ratio=probe_backtrack_start_ratio,
+    )
+
+
+def _search_recursive(
     schedule,
     sessions,
     domains,
@@ -157,7 +182,7 @@ def _backtrack(
                     _emit_progress(progress_callback, stats)
                     continue
 
-            result = _backtrack(
+            result = _search_recursive(
                 schedule,
                 sessions,
                 domains,
@@ -178,6 +203,33 @@ def _backtrack(
             _emit_progress(progress_callback, stats)
 
     return None
+
+
+def _backtrack(
+    schedule,
+    sessions,
+    domains,
+    teachers,
+    progress_callback,
+    stats,
+    aggressive_pruning,
+    force_probe_backtrack,
+    target_probe_backtracks,
+    probe_backtrack_start_ratio,
+):
+    """Backward-compatible alias for _search_recursive."""
+    return _search_recursive(
+        schedule,
+        sessions,
+        domains,
+        teachers,
+        progress_callback,
+        stats,
+        aggressive_pruning,
+        force_probe_backtrack,
+        target_probe_backtracks,
+        probe_backtrack_start_ratio,
+    )
 
 
 def _forward_check_has_values(
@@ -360,7 +412,7 @@ def _order_values_least_constraining(
 
 
 def _first_tuple_value(item):
-    return item[0]
+    return item[0], item[1]
 
 
 def _soft_score_for_value(schedule, session, timeslot, unassigned, domains):
